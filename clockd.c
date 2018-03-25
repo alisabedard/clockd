@@ -1,13 +1,19 @@
-#include <arpa/inet.h>
+#if 0
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
 #include <iostream>
+#endif
+#include <arpa/inet.h>
 #include <signal.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 enum { RFC868ADJ = 2208988800,
 	CORRECTION = 123010304,
@@ -25,7 +31,7 @@ static int get_socket(void)
 {
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
-		std::cerr << "cannot open socket";
+		perror("socket()");
 		exit(1);
 	}
 	clockd_cleanup_fd = fd;
@@ -44,24 +50,28 @@ static time_t get_unix_time(int fd)
 }
 static void set_unix_time(time_t t)
 {
-	struct timeval tv = {t};
+	struct timeval tv = {t, 0};
+	puts("setting time...");
+	if (settimeofday(&tv, NULL) < 0)
+		perror("settimeofday()");
+}
+static void print_time(const time_t t)
+{
 	char buf[26];
-	std::cout << "Setting time: " << ctime_r(&tv.tv_sec, buf) << "\n";
-	settimeofday(&tv, NULL);
+	printf("time:  %s\n", ctime_r(&t, buf));
 }
 static int client(const char * addr)
 {
-	std::cout << "opening " << addr << "\n";
+	printf("opening %s\n", addr);
 	int fd = get_socket();
 	struct sockaddr_in sa;
 	sa.sin_family = AF_INET;
 	sa.sin_port = htons(37);
 	inet_pton(AF_INET, addr, &sa.sin_addr);
-	if (connect(fd, (sockaddr*)&sa, sizeof(sa)) < 0)
+	if (connect(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0)
 		perror("connect");
 	time_t t = get_unix_time(fd);
-	char buf[26];
-	std::cout << "time: " << ctime_r(&t, buf) << "\n";
+	print_time(t);
 	if (clockd_flags & FLAG_SET_TIME)
 		set_unix_time(t);
 	return 0;
@@ -72,14 +82,14 @@ static void print_868_time(int fd)
 	// rather than 01 JAN 1970.
 	enum {SZ = 20};
 	uint32_t t = time(NULL) + CLOCKDADJ;
-	std::cout << t << "\n";
+	printf("sending %d to peer", t);
 	t = htonl(t);
 	uint8_t * bytes = (uint8_t *)&t;
 	write(fd, bytes, 4);
 }
 static int server()
 {
-	std::cout << "clockd server starting\n";
+	puts("clockd server starting");
 	const int fd = get_socket();
 	struct sockaddr_in a;
 	{ // reuse socket if the kernel still has it
@@ -104,7 +114,6 @@ static int server()
 			close(fd);
 			return 1;
 		} else {
-			std::cerr << "accepted connection\n";
 			print_868_time(c_fd);
 			close(c_fd);
 		}
@@ -115,21 +124,19 @@ static int server()
 int main(int argc, char ** argv)
 {
 	char opt, opts[] = "Sc:s";
-	int rval = 0;
-	switch (opt = getopt(argc, argv, opts))
-	{
-	case 'S': // set time with client
-		clockd_flags |= FLAG_SET_TIME;
-		break;
-	case 'c': // optarg is the ip address
-		rval = client(optarg);
-		break;
-	case 's':
-		rval = server();
-		break;
-	default:
-		std::cerr << argv[0] << " -[" << opts << "]\n";
-		rval = 1;
+	while ((opt = getopt(argc, argv, opts)) != -1) {
+		switch(opt) {
+		case 'S': // set time with client
+			clockd_flags |= FLAG_SET_TIME;
+			break;
+		case 'c': // optarg is the ip address
+			exit(client(optarg));
+		case 's': // run in server mode
+			exit(server());
+		default: // display usage
+			fprintf(stderr, "%s -[%s]\n", argv[0], opts);
+			exit(1);
+		}
 	}
-	return rval;
+	return 0;
 }
