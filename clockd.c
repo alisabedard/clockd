@@ -1,10 +1,4 @@
-#if 0
-#include <cstdlib>
-#include <cstdint>
-#include <cstring>
-#include <cstdio>
-#include <iostream>
-#endif
+// Copyright 2018, Jeffrey E. Bedard
 #include <arpa/inet.h>
 #include <signal.h>
 #include <stdint.h>
@@ -68,8 +62,10 @@ static int client(const char * addr)
 	sa.sin_family = AF_INET;
 	sa.sin_port = htons(37);
 	inet_pton(AF_INET, addr, &sa.sin_addr);
-	if (connect(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0)
-		perror("connect");
+	if (connect(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0) {
+		perror("connect()");
+		exit(1);
+	}
 	time_t t = get_unix_time(fd);
 	print_time(t);
 	if (clockd_flags & FLAG_SET_TIME)
