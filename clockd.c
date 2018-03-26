@@ -1,5 +1,6 @@
 // Copyright 2018, Jeffrey E. Bedard
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -67,7 +68,14 @@ static int client(const char * addr)
 	struct sockaddr_in sa;
 	sa.sin_family = AF_INET;
 	sa.sin_port = htons(37);
-	inet_pton(AF_INET, addr, &sa.sin_addr);
+	struct hostent * e = gethostbyname(addr);
+	if (!e) {
+		perror("gethostbyname()");
+		exit(1);
+	}
+	struct in_addr ** alist = (struct in_addr **)e->h_addr_list;
+	fprintf(stderr, "resolved %s into %s\n", addr, inet_ntoa(*alist[0]));
+	inet_pton(AF_INET, inet_ntoa(*alist[0]), &sa.sin_addr);
 	if (connect(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0) {
 		perror("connect()");
 		exit(1);
