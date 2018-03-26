@@ -10,3 +10,10 @@ clean:
 	rm -f ${prog} ${prog}.o
 install:
 	install -m 0755 ${prog} ${prefix}/bin/
+	mkdir -p /etc/init.d
+	install -m 0755 clockd-server.openrc /etc/init.d
+	install -m 0755 clockd-client.openrc /etc/init.d
+	mkdir -p /usr/lib/systemd/system
+	install -m 0644 clockd-server.service /usr/lib/systemd/system
+	install -m 0644 clockd-client.service /usr/lib/systemd/system
+	install -m 0644 clockd-client.timer /usr/lib/systemd/system

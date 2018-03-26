@@ -1,0 +1,8 @@
+[Unit]
+Description=Time Synchronization Client Timer
+[Timer]
+OnBootSec=1h
+OnActiveSec=1h
+Unit=clockd-client.service
+[Install]
+WantedBy=time-sync.target

@@ -1,0 +1,7 @@
+[Unit]
+Description=Time Synchronization Server
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/clockd -s
+[Install]
+WantedBy=time-sync.target

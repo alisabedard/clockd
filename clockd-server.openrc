@@ -1,0 +1,10 @@
+#!/sbin/openrc-run
+depend()
+{
+	use dns
+	provide clock
+}
+start()
+{
+	clockd -d -s
+}

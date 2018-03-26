@@ -1,0 +1,10 @@
+#!/sbin/openrc-run
+SERVER="192.168.2.3"
+depend()
+{
+	provide clock
+}
+start()
+{
+	clockd -S -c "$SERVER"
+}
