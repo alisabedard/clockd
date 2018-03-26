@@ -9,16 +9,22 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-enum { RFC868ADJ = 2208988800,
+enum { RFC868ADJ = 2208988800, CLOCKD_BUFSZ = 10,
 	CORRECTION = 123010304,
 	CLOCKDADJ = CORRECTION - RFC868ADJ,
-	FLAG_SET_TIME = 1};
+	FLAG_SET_TIME = 1, FLAG_FORK = 2};
 static int clockd_cleanup_fd;
 static uint8_t clockd_flags;
 void signal_cb(int sig)
 {
 	(void)sig;
 	close(clockd_cleanup_fd);
+}
+void check_fork(void)
+{
+	if ((clockd_flags & FLAG_FORK) // in forking mode
+		&& (fork() != 0)) // fork the child
+		exit(0); // quit the parent
 }
 // simple RFC 868 client/server
 static int get_socket(void)
@@ -72,19 +78,33 @@ static int client(const char * addr)
 		set_unix_time(t);
 	return 0;
 }
+static void log_string_for_value(const int32_t v)
+{
+	char buf[CLOCKD_BUFSZ];
+	uint8_t len = snprintf(buf, CLOCKD_BUFSZ, "%d", v);
+	write(STDOUT_FILENO, buf, len);
+}
+static void log_sent_value(const int32_t v)
+{
+#define CLOCKD_MSG_SENDING "Sending "
+	write(STDOUT_FILENO, CLOCKD_MSG_SENDING, sizeof(CLOCKD_MSG_SENDING));
+	log_string_for_value(v);
+	write(STDOUT_FILENO, "\n", 1);
+}
 static void print_868_time(int fd)
 {
 	// ADJ converts the time to be relative to 01 JAN 1900,
 	// rather than 01 JAN 1970.
 	enum {SZ = 20};
-	uint32_t t = time(NULL) + CLOCKDADJ;
-	printf("sending %d to peer", t);
+	int32_t t = time(NULL) + CLOCKDADJ;
 	t = htonl(t);
+	log_sent_value(t);
 	uint8_t * bytes = (uint8_t *)&t;
 	write(fd, bytes, 4);
 }
 static int server()
 {
+	check_fork();
 	puts("clockd server starting");
 	const int fd = get_socket();
 	struct sockaddr_in a;
@@ -98,9 +118,12 @@ static int server()
 	a.sin_port = htons(37);
 	if (bind(fd, (struct sockaddr *)&a, sizeof(struct sockaddr)) < 0) {
 		perror("bind()");
-		return 1;
+		exit(1);
 	}
-	listen(fd, 16); // accept up to 16 pending connections
+	if (listen(fd, 16)) { // accept up to 16 pending connections
+		perror("listen()");
+		exit(1);
+	}
 	struct sockaddr c_adr;
 	socklen_t len;
 	for (;;) {
@@ -119,14 +142,17 @@ static int server()
 }
 int main(int argc, char ** argv)
 {
-	char opt, opts[] = "Sc:s";
+	char opt, opts[] = "fSc:s";
 	while ((opt = getopt(argc, argv, opts)) != -1) {
 		switch(opt) {
+		case 'c': // optarg is the ip address
+			exit(client(optarg));
+		case 'f': // enable forking
+			clockd_flags |= FLAG_FORK;
+			break;
 		case 'S': // set time with client
 			clockd_flags |= FLAG_SET_TIME;
 			break;
-		case 'c': // optarg is the ip address
-			exit(client(optarg));
 		case 's': // run in server mode
 			exit(server());
 		default: // display usage
