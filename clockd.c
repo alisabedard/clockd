@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-enum { RFC868ADJ = 2208988800, CLOCKD_BUFSZ = 10,
+enum { RFC868ADJ = 2208988800, CLOCKD_BUFSZ = 15,
 	CORRECTION = 123010304,
 	CLOCKDADJ = CORRECTION - RFC868ADJ,
 	FLAG_SET_TIME = 1, FLAG_FORK = 2};
@@ -86,13 +86,13 @@ static int client(const char * addr)
 		set_unix_time(t);
 	return 0;
 }
-static void log_string_for_value(const int32_t v)
+static void log_string_for_value(const time_t v)
 {
 	char buf[CLOCKD_BUFSZ];
-	uint8_t len = snprintf(buf, CLOCKD_BUFSZ, "%d", v);
+	uint8_t len = snprintf(buf, CLOCKD_BUFSZ, "%li", v);
 	write(STDOUT_FILENO, buf, len);
 }
-static void log_sent_value(const int32_t v)
+static void log_sent_value(const time_t v)
 {
 #define CLOCKD_MSG_SENDING "Sending "
 	write(STDOUT_FILENO, CLOCKD_MSG_SENDING, sizeof(CLOCKD_MSG_SENDING));
@@ -106,7 +106,7 @@ static void print_868_time(int fd)
 	enum {SZ = 20};
 	int32_t t = time(NULL) + CLOCKDADJ;
 	t = htonl(t);
-	log_sent_value(t);
+	log_sent_value(ntohl(t));
 	uint8_t * bytes = (uint8_t *)&t;
 	write(fd, bytes, 4);
 }
