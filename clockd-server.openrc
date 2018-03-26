@@ -6,5 +6,5 @@ depend()
 }
 start()
 {
-	clockd -d -s
+	clockd -f -s
 }
