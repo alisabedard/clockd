@@ -23,6 +23,14 @@ void signal_cb(int sig)
 	(void)sig;
 	close(clockd_cleanup_fd);
 }
+static void check(const bool fail_condition, const char * error_message)
+{
+	if (fail_condition) {
+		perror(error_message);
+		signal_cb(0);
+		exit(1);
+	}
+}
 void check_fork(void)
 {
 	if ((clockd_flags & FLAG_FORK) // in forking mode
@@ -33,10 +41,7 @@ void check_fork(void)
 static int get_socket(void)
 {
 	fd_t fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (fd < 0) {
-		perror("socket()");
-		exit(1);
-	}
+	check(fd < 0, "socket()");
 	clockd_cleanup_fd = fd;
 	signal(SIGINT, &signal_cb);
 	signal(SIGKILL, &signal_cb);
@@ -45,30 +50,24 @@ static int get_socket(void)
 }
 static time_t get_unix_time(const fd_t fd)
 {
-	int32_t t;
-	uint8_t * bytes = (uint8_t *)&t;
-	read(fd, bytes, 4);
-	t = ntohl(t);
-	return t - CLOCKDADJ;
+	int32_t word;
+	uint8_t * bytes = (uint8_t *)&word;
+	check(read(fd, bytes, 4) < 0, "read()");
+	time_t host_order = ntohl(word);
+	printf("received %li\n", (long int)host_order);
+	// Must operate on 32 bit signed integer per RFC 868.
+	return ((int32_t)host_order) - CLOCKDADJ;
 }
 static void set_unix_time(time_t t)
 {
-	struct timeval tv = {t, 0};
 	puts("setting time...");
-	if (settimeofday(&tv, NULL) < 0)
-		perror("settimeofday()");
+	struct timeval tv = {t, 0};
+	check(settimeofday(&tv, NULL) < 0, "settimeofday()");
 }
 static void print_time(const char * prefix, const time_t t)
 {
 	char buf[26];
 	printf("%s time:  %s", prefix, ctime_r(&t, buf));
-}
-static void check(const bool fail_condition, const char * error_message)
-{
-	if (fail_condition) {
-		perror(error_message);
-		exit(1);
-	}
 }
 static int client(const char * addr)
 {
@@ -79,8 +78,7 @@ static int client(const char * addr)
 	struct hostent * e = gethostbyname(addr);
 	check(!e, "gethostbynname()");
 	struct in_addr ** alist = (struct in_addr **)e->h_addr_list;
-	check(fprintf(stderr, "resolved %s as %s\n", addr,
-		inet_ntoa(*alist[0])) < 0, "fprintf()");
+	printf("resolved %s as %s\n", addr, inet_ntoa(*alist[0]));
 	check(inet_pton(AF_INET, inet_ntoa(*alist[0]), &sa.sin_addr) < 1,
 		"inet_pton()");
 	check(connect(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0,
@@ -92,19 +90,6 @@ static int client(const char * addr)
 		set_unix_time(t);
 	return 0;
 }
-static void log_string_for_value(const time_t v)
-{
-	char buf[CLOCKD_BUFSZ];
-	uint8_t len = snprintf(buf, CLOCKD_BUFSZ, "%li", v);
-	write(STDOUT_FILENO, buf, len);
-}
-static void log_sent_value(const time_t v)
-{
-#define CLOCKD_MSG_SENDING "Sending "
-	write(STDOUT_FILENO, CLOCKD_MSG_SENDING, sizeof(CLOCKD_MSG_SENDING));
-	log_string_for_value(v);
-	write(STDOUT_FILENO, "\n", 1);
-}
 static void print_868_time(int fd)
 {
 	// ADJ converts the time to be relative to 01 JAN 1900,
@@ -112,7 +97,7 @@ static void print_868_time(int fd)
 	enum {SZ = 20};
 	int32_t t = time(NULL) + CLOCKDADJ;
 	t = htonl(t);
-	log_sent_value(ntohl(t));
+	printf("sending %li\n", (long int)ntohl(t));
 	uint8_t * bytes = (uint8_t *)&t;
 	write(fd, bytes, 4);
 }
@@ -136,14 +121,9 @@ static int server()
 		struct sockaddr c_adr;
 		socklen_t len;
 		int c_fd = accept(fd, &c_adr, &len);
-		if (c_fd < 0) {
-			perror("accept()");
-			close(fd);
-			return 1;
-		} else {
-			print_868_time(c_fd);
-			close(c_fd);
-		}
+		check(c_fd < 0, "accept()");
+		print_868_time(c_fd);
+		close(c_fd);
 	}
 	close(fd);
 	return 0;
@@ -164,7 +144,7 @@ int main(int argc, char ** argv)
 		case 's': // run in server mode
 			exit(server());
 		default: // display usage
-			fprintf(stderr, "%s -[%s]\n", argv[0], opts);
+			printf("%s -[%s]\n", argv[0], opts);
 			exit(1);
 		}
 	}
