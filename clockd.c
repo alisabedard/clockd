@@ -69,6 +69,7 @@ static void print_time(const char * prefix, const time_t t)
 	char buf[26];
 	printf("%s time:  %s", prefix, ctime_r(&t, buf));
 }
+__attribute__((noreturn))
 static int client(const char * addr)
 {
 	const fd_t fd = get_socket();
@@ -88,9 +89,9 @@ static int client(const char * addr)
 	print_time("remote", t);
 	if (clockd_flags & FLAG_SET_TIME)
 		set_unix_time(t);
-	return 0;
+	exit(0);
 }
-static void print_868_time(int fd)
+static void print_868_time(const fd_t fd)
 {
 	// ADJ converts the time to be relative to 01 JAN 1900,
 	// rather than 01 JAN 1970.
@@ -101,6 +102,7 @@ static void print_868_time(int fd)
 	uint8_t * bytes = (uint8_t *)&t;
 	write(fd, bytes, 4);
 }
+__attribute__((noreturn))
 static int server()
 {
 	check_fork();
@@ -126,7 +128,7 @@ static int server()
 		close(c_fd);
 	}
 	close(fd);
-	return 0;
+	exit(0);
 }
 int main(int argc, char ** argv)
 {
@@ -142,7 +144,7 @@ int main(int argc, char ** argv)
 			clockd_flags |= FLAG_SET_TIME;
 			break;
 		case 's': // run in server mode
-			exit(server());
+			server();
 		default: // display usage
 			printf("%s -[%s]\n", argv[0], opts);
 			exit(1);
