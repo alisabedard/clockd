@@ -1,7 +1,7 @@
 [Unit]
 Description=Time Synchronization Client Timer
 [Timer]
-OnBootSec=1h
+OnUnitActiveSec=1h
 OnActiveSec=1h
 Unit=clockd-client.service
 [Install]
