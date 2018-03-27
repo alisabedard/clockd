@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -61,6 +62,13 @@ static void print_time(const char * prefix, const time_t t)
 	char buf[26];
 	printf("%s time:  %s", prefix, ctime_r(&t, buf));
 }
+static void check(const bool fail_condition, const char * error_message)
+{
+	if (fail_condition) {
+		perror(error_message);
+		exit(1);
+	}
+}
 static int client(const char * addr)
 {
 	printf("opening %s\n", addr);
@@ -69,13 +77,13 @@ static int client(const char * addr)
 	sa.sin_family = AF_INET;
 	sa.sin_port = htons(37);
 	struct hostent * e = gethostbyname(addr);
-	if (!e) {
-		perror("gethostbyname()");
-		exit(1);
-	}
+	check(!e, "gethostbynname()");
 	struct in_addr ** alist = (struct in_addr **)e->h_addr_list;
 	fprintf(stderr, "resolved %s as %s\n", addr, inet_ntoa(*alist[0]));
-	inet_pton(AF_INET, inet_ntoa(*alist[0]), &sa.sin_addr);
+	if (inet_pton(AF_INET, inet_ntoa(*alist[0]), &sa.sin_addr) < 1) {
+		perror("inet_pton()");
+		exit(1);
+	}
 	if (connect(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0) {
 		perror("connect()");
 		exit(1);
