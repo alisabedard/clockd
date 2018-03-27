@@ -15,7 +15,8 @@ enum { RFC868ADJ = 2208988800, CLOCKD_BUFSZ = 15,
 	CORRECTION = 123010304,
 	CLOCKDADJ = CORRECTION - RFC868ADJ,
 	FLAG_SET_TIME = 1, FLAG_FORK = 2};
-static int clockd_cleanup_fd;
+typedef int fd_t;
+static fd_t clockd_cleanup_fd;
 static uint8_t clockd_flags;
 void signal_cb(int sig)
 {
@@ -31,7 +32,7 @@ void check_fork(void)
 // simple RFC 868 client/server
 static int get_socket(void)
 {
-	int fd = socket(AF_INET, SOCK_STREAM, 0);
+	fd_t fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
 		perror("socket()");
 		exit(1);
@@ -42,7 +43,7 @@ static int get_socket(void)
 	signal(SIGTERM, &signal_cb);
 	return fd;
 }
-static time_t get_unix_time(int fd)
+static time_t get_unix_time(const fd_t fd)
 {
 	int32_t t;
 	uint8_t * bytes = (uint8_t *)&t;
@@ -71,23 +72,19 @@ static void check(const bool fail_condition, const char * error_message)
 }
 static int client(const char * addr)
 {
-	printf("opening %s\n", addr);
-	int fd = get_socket();
+	const fd_t fd = get_socket();
 	struct sockaddr_in sa;
 	sa.sin_family = AF_INET;
 	sa.sin_port = htons(37);
 	struct hostent * e = gethostbyname(addr);
 	check(!e, "gethostbynname()");
 	struct in_addr ** alist = (struct in_addr **)e->h_addr_list;
-	fprintf(stderr, "resolved %s as %s\n", addr, inet_ntoa(*alist[0]));
-	if (inet_pton(AF_INET, inet_ntoa(*alist[0]), &sa.sin_addr) < 1) {
-		perror("inet_pton()");
-		exit(1);
-	}
-	if (connect(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0) {
-		perror("connect()");
-		exit(1);
-	}
+	check(fprintf(stderr, "resolved %s as %s\n", addr,
+		inet_ntoa(*alist[0])) < 0, "fprintf()");
+	check(inet_pton(AF_INET, inet_ntoa(*alist[0]), &sa.sin_addr) < 1,
+		"inet_pton()");
+	check(connect(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0,
+		"connect()");
 	time_t t = get_unix_time(fd);
 	print_time("local", time(NULL));
 	print_time("remote", t);
@@ -123,27 +120,21 @@ static int server()
 {
 	check_fork();
 	puts("clockd server starting");
-	const int fd = get_socket();
-	struct sockaddr_in a;
+	const fd_t fd = get_socket();
 	{ // reuse socket if the kernel still has it
 		int optval;
-		setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-			&optval, sizeof(int));
+		check(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+			&optval, sizeof(int)) < 0, "setsockopt()");
 	}
-	a.sin_family = AF_INET;
-	a.sin_addr.s_addr = htonl(INADDR_ANY);
-	a.sin_port = htons(37);
-	if (bind(fd, (struct sockaddr *)&a, sizeof(struct sockaddr)) < 0) {
-		perror("bind()");
-		exit(1);
-	}
-	if (listen(fd, 16)) { // accept up to 16 pending connections
-		perror("listen()");
-		exit(1);
-	}
-	struct sockaddr c_adr;
-	socklen_t len;
+	struct sockaddr_in a = {.sin_family = AF_INET,
+		.sin_addr.s_addr = htonl(INADDR_ANY), .sin_port = htons(37)};
+	check(bind(fd, (struct sockaddr *)&a, sizeof(struct sockaddr)) < 0,
+		"bind()");
+	// accept up to 16 pending connections
+	check(listen(fd, 16) < 0, "listen()");
 	for (;;) {
+		struct sockaddr c_adr;
+		socklen_t len;
 		int c_fd = accept(fd, &c_adr, &len);
 		if (c_fd < 0) {
 			perror("accept()");
