@@ -56,10 +56,10 @@ static void set_unix_time(time_t t)
 	if (settimeofday(&tv, NULL) < 0)
 		perror("settimeofday()");
 }
-static void print_time(const time_t t)
+static void print_time(const char * prefix, const time_t t)
 {
 	char buf[26];
-	printf("time:  %s\n", ctime_r(&t, buf));
+	printf("%s time:  %s", prefix, ctime_r(&t, buf));
 }
 static int client(const char * addr)
 {
@@ -81,7 +81,8 @@ static int client(const char * addr)
 		exit(1);
 	}
 	time_t t = get_unix_time(fd);
-	print_time(t);
+	print_time("local", time(NULL));
+	print_time("remote", t);
 	if (clockd_flags & FLAG_SET_TIME)
 		set_unix_time(t);
 	return 0;
