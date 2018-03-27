@@ -74,7 +74,7 @@ static int client(const char * addr)
 		exit(1);
 	}
 	struct in_addr ** alist = (struct in_addr **)e->h_addr_list;
-	fprintf(stderr, "resolved %s into %s\n", addr, inet_ntoa(*alist[0]));
+	fprintf(stderr, "resolved %s as %s\n", addr, inet_ntoa(*alist[0]));
 	inet_pton(AF_INET, inet_ntoa(*alist[0]), &sa.sin_addr);
 	if (connect(fd, (struct sockaddr*)&sa, sizeof(sa)) < 0) {
 		perror("connect()");
