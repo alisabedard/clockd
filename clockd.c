@@ -100,7 +100,7 @@ static void print_868_time(const fd_t fd)
 	t = htonl(t);
 	printf("sending %li\n", (long int)ntohl(t));
 	uint8_t * bytes = (uint8_t *)&t;
-	write(fd, bytes, 4);
+	check(write(fd, bytes, 4) < 0, "write()");
 }
 __attribute__((noreturn))
 static int server()
