@@ -43,9 +43,8 @@ static int get_socket(void)
 	fd_t fd = socket(AF_INET, SOCK_STREAM, 0);
 	check(fd < 0, "socket()");
 	clockd_cleanup_fd = fd;
-	signal(SIGINT, &signal_cb);
-	signal(SIGKILL, &signal_cb);
-	signal(SIGTERM, &signal_cb);
+	check(signal(SIGINT, &signal_cb) == SIG_ERR, "signal()");
+	check(signal(SIGTERM, &signal_cb) == SIG_ERR, "signal()");
 	return fd;
 }
 static time_t get_unix_time(const fd_t fd)
