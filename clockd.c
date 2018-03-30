@@ -15,7 +15,7 @@ enum { RFC868ADJ = 2208988800, CLOCKD_BUFSZ = 15,
 	CORRECTION = 123010304,
 	CLOCKDADJ = CORRECTION - RFC868ADJ,
 	FLAG_SET_TIME = 1, FLAG_FORK = 2};
-typedef int fd_t;
+typedef int8_t fd_t;
 static fd_t clockd_cleanup_fd;
 static uint8_t clockd_flags;
 void signal_cb(int sig)
@@ -70,7 +70,7 @@ static void print_time(const char * prefix, const time_t t)
 	printf("%s time:  %s", prefix, ctime_r(&t, buf));
 }
 __attribute__((noreturn))
-static int client(const char * addr)
+static void client(const char * addr)
 {
 	const fd_t fd = get_socket();
 	struct sockaddr_in sa;
@@ -103,7 +103,7 @@ static void print_868_time(const fd_t fd)
 	check(write(fd, bytes, 4) < 0, "write()");
 }
 __attribute__((noreturn))
-static int server()
+static void server()
 {
 	check_fork();
 	puts("clockd server starting");
@@ -122,10 +122,10 @@ static int server()
 	for (;;) {
 		struct sockaddr c_adr;
 		socklen_t len;
-		int c_fd = accept(fd, &c_adr, &len);
+		fd_t c_fd = accept(fd, &c_adr, &len);
 		check(c_fd < 0, "accept()");
 		print_868_time(c_fd);
-		close(c_fd);
+		check(close(c_fd), "close()");
 	}
 	close(fd);
 	exit(0);
@@ -136,7 +136,7 @@ int main(int argc, char ** argv)
 	while ((opt = getopt(argc, argv, opts)) != -1) {
 		switch(opt) {
 		case 'c': // optarg is the ip address
-			exit(client(optarg));
+			client(optarg);
 		case 'f': // enable forking
 			clockd_flags |= FLAG_FORK;
 			break;
