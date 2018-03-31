@@ -108,7 +108,7 @@ static void server()
 	puts("clockd server starting");
 	const fd_t fd = get_socket();
 	{ // reuse socket if the kernel still has it
-		int optval;
+		int optval = 1;
 		check(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
 			&optval, sizeof(int)) < 0, "setsockopt()");
 	}
