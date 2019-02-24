@@ -2,6 +2,6 @@
 Description=Time Synchronization Client
 [Service]
 Type=oneshot
-ExecStart='/usr/local/bin/clockd -S -c $(cat /etc/clockd.txt)' 
+ExecStart=/usr/local/bin/clockc.sh
 [Install]
 WantedBy=time-sync.target

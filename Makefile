@@ -9,7 +9,8 @@ ${prog}: ${prog}.o
 clean:
 	rm -f ${prog} ${prog}.o
 install:
-	install -m 0755 ${prog} ${prefix}/bin/
+	install -m 0755 ${prog} ${prefix}/bin
+	install -m 0755 clockc.sh ${prefix}/bin
 	mkdir -p /etc/init.d
 	install -m 0755 clockd-server.openrc /etc/init.d
 	install -m 0755 clockd-client.openrc /etc/init.d
