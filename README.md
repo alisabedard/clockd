@@ -10,4 +10,6 @@ The client and server live in the same binary.
 	-c 	run in client mode
 	-s	run in server mode (must run as root)
 ```
-
+## Configuration
+/etc/clockd.txt should contain the hostname of the clockd server on your
+network.  

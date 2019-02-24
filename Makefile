@@ -17,3 +17,4 @@ install:
 	install -m 0644 clockd-server.service /usr/lib/systemd/system
 	install -m 0644 clockd-client.service /usr/lib/systemd/system
 	install -m 0644 clockd-client.timer /usr/lib/systemd/system
+	install -m 0644 clockd.txt /etc

@@ -1,5 +1,5 @@
 #!/sbin/openrc-run
-SERVER="192.168.2.3"
+SERVER="$(cat /etc/clockd.txt)"
 depend()
 {
 	provide clock
