@@ -1,4 +1,4 @@
-// Copyright 2018, Jeffrey E. Bedard
+// Copyright 2018, Alisa Bedard
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <signal.h>
